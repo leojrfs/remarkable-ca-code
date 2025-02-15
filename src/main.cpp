@@ -109,10 +109,11 @@ int main(int argc, char *argv[])
     if (ret)
     {
         OD_LOG_STDERR("Usage: %s [-v/--verbose] -s/--server-url <URL> -i/--interval <seconds>", argv[0]);
-        INIT_NOTIFY_FAILED_TO_STARTUP(ret);
         // https://refspecs.linuxbase.org/LSB_3.1.1/LSB-Core-generic/LSB-Core-generic/iniscrptact.html
         // return 2 for invalid or excess argument(s)
-        return 2;
+        ret = 2;
+        INIT_NOTIFY_FAILED_TO_STARTUP(ret);
+        return ret;
     }
 
     // setup signal handlers
