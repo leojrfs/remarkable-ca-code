@@ -10,10 +10,8 @@
 #include <system_error>
 #include <getopt.h>
 #include <signal.h>
-#ifdef USE_SYSTEMD
-#include <systemd/sd-daemon.h>
-#endif
 #include "log_utils.h"
+#include "init_utils.h"
 #include "Report.hpp"
 
 using namespace std;
@@ -111,9 +109,7 @@ int main(int argc, char *argv[])
     if (ret)
     {
         OD_LOG_STDERR("Usage: %s [-v/--verbose] -s/--server-url <URL> -i/--interval <seconds>", argv[0]);
-#ifdef USE_SYSTEMD
-        sd_notifyf(0, "STATUS=Failed to start up. ERRNO=%i", ret);
-#endif
+        INIT_NOTIFY_FAILED_TO_STARTUP(ret);
         // https://refspecs.linuxbase.org/LSB_3.1.1/LSB-Core-generic/LSB-Core-generic/iniscrptact.html
         // return 2 for invalid or excess argument(s)
         return 2;
@@ -129,10 +125,8 @@ int main(int argc, char *argv[])
     sigaction(SIGINT, &sa, nullptr);
     sigaction(SIGHUP, &sa, nullptr);
 
-#ifdef USE_SYSTEMD
     // notify systemd that the daemon is ready
-    sd_notify(0, "READY=1");
-#endif
+    INIT_NOTIFY_READY();
 
     Report report(server_url, verbose);
 
@@ -154,16 +148,12 @@ int main(int argc, char *argv[])
             OD_LOG_ERR("Error while sending report: %s", e.what());
         }
         sleep(interval_s);
-#ifdef USE_SYSTEMD
-        // kick systemd watchdog
-        sd_notify(0, "WATCHDOG=1");
-#endif
+        // kick watchdog
+        INIT_NOTIFY_WATCHDOG();
     }
 
-#ifdef USE_SYSTEMD
-    // notify systemd daemon is stopping
-    sd_notify(0, "STOPPING=1");
-#endif
+    // notify daemon is stopping
+    INIT_NOTIFY_STOPPING();
 
     OD_LOG_INFO("Demon has been sucessfully stopped.");
 
