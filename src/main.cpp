@@ -77,13 +77,13 @@ static int parse_cmdline_arguments(int argc, char *argv[])
 
     if (!arg_interval_set)
     {
-        OD_LOG_ERR_RAW("%s: argument '-i/--interval' is required", argv[0]);
+        OD_LOG_STDERR("%s: argument '-i/--interval' is required", argv[0]);
         return 1;
     }
 
     if (!arg_server_url_set)
     {
-        OD_LOG_ERR_RAW("%s: argument '-s/--server-url' is required", argv[0]);
+        OD_LOG_STDERR("%s: argument '-s/--server-url' is required", argv[0]);
         return 1;
     }
 
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
     ret = parse_cmdline_arguments(argc, argv);
     if (ret)
     {
-        OD_LOG_ERR_RAW("Usage: %s [-v/--verbose] -s/--server-url <URL> -i/--interval <seconds>", argv[0]);
+        OD_LOG_STDERR("Usage: %s [-v/--verbose] -s/--server-url <URL> -i/--interval <seconds>", argv[0]);
 #ifdef USE_SYSTEMD
         sd_notifyf(0, "STATUS=Failed to start up. ERRNO=%i", ret);
 #endif
