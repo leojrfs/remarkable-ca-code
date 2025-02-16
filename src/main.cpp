@@ -19,7 +19,8 @@ using namespace std;
 atomic<bool> running(true);
 string server_url;
 int interval_s;
-bool verbose = false;
+
+uint8_t verbosity = LOG_VERBOSITY_DEFAULT;
 
 static int parse_cmdline_arguments(int argc, char *argv[])
 {
@@ -27,18 +28,24 @@ static int parse_cmdline_arguments(int argc, char *argv[])
     bool arg_interval_set = false;
 
     struct option long_options[] = {
-        {"verbose", no_argument, nullptr, 'v'},
+        {"verbosity", required_argument, nullptr, 'v'},
         {"server-url", required_argument, nullptr, 's'},
         {"interval", required_argument, nullptr, 'i'},
         {nullptr, 0, nullptr, 0}};
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "vs:i:", long_options, nullptr)) != -1)
+    while ((opt = getopt_long(argc, argv, "v:s:i:", long_options, nullptr)) != -1)
     {
         switch (opt)
         {
         case 'v':
-            verbose = true;
+            verbosity = atoi(optarg);
+            if ((verbosity < LOG_VERBOSITY_MIN) || (verbosity > LOG_VERBOSITY_MAX))
+            {
+                OD_LOG_ERR("verbosity value should be between '%d' and '%d'.\n",
+                           LOG_VERBOSITY_MIN, LOG_VERBOSITY_MAX);
+                return 1;
+            }
             break;
         case 's':
             server_url = optarg;
