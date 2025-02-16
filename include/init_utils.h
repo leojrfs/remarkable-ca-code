@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 Leo Soares
+ *
+ * SPDX-License-Identifier: Proprietary
+ */
 #ifndef INIT_UITLS_H
 #define INIT_UITLS_H
 #ifdef USE_SYSTEMD

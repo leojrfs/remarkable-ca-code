@@ -16,20 +16,22 @@
 
 using namespace std;
 
+/**
+ * @brief curl write callback used in order to suppress printing to stdout
+ */
 static size_t curl_write_cb(void *ptr, size_t size, size_t nmemb, void *data)
 {
-    // For now, we just discard the output to suppress printing to stdout.
-    // Return number of bytes handled.
+    // return number of bytes handled.
     return size * nmemb;
 }
 
-static string statsToPayload(const string &hostname, struct sysinfo *info)
-{
-    return "{\"hostname\":\"" + hostname + "\",\"uptime\":" + to_string(info->uptime) + "}";
-}
-
-Report::Report(const string &url, bool is_verbose = false)
-    : server_url(url), verbose(is_verbose), curl_session(curl_easy_init())
+/**
+ * @brief Constructs a Report object with the specified server URL.
+ * @param url The server URL to send data to.
+ * @throws std::runtime_error if cURL initialization fails.
+ */
+Report::Report(const string &url)
+    : server_url(url), curl_session(curl_easy_init()), headers(nullptr)
 {
     if (!curl_session)
     {
@@ -41,12 +43,14 @@ Report::Report(const string &url, bool is_verbose = false)
     curl_easy_setopt(curl_session, CURLOPT_WRITEFUNCTION, curl_write_cb);
     curl_easy_setopt(curl_session, CURLOPT_URL, server_url.c_str());
     curl_easy_setopt(curl_session, CURLOPT_TIMEOUT_MS, 5000);
-    curl_easy_setopt(curl_session, CURLOPT_POSTFIELDS, report_payload_str.c_str());
     headers = curl_slist_append(headers, "Expect:");
     headers = curl_slist_append(headers, "Content-Type: application/json");
     curl_easy_setopt(curl_session, CURLOPT_HTTPHEADER, headers);
 }
 
+/**
+ * @brief Destroys the Report object, cleaning up resources.
+ */
 Report::~Report()
 {
     if (headers)
@@ -59,27 +63,16 @@ Report::~Report()
     }
 }
 
-// Function to send the system info (hostname and uptime)
-void Report::send()
+/**
+ * @brief Sends the specified JSON payload to the server.
+ * @param jsonStrPayload The JSON string to send.
+ * @throws std::runtime_error if sending the data fails.
+ */
+void Report::send(const string &jsonStrPayload)
 {
-
-    struct sysinfo sys_info;
-    if (sysinfo(&sys_info) != 0)
-    {
-        int err = errno;
-        throw system_error(err, system_category(), "Failed to retrieve system info: " + string(strerror(err)));
-    }
-    char hostname[128];
-    if (gethostname(hostname, sizeof(hostname)) != 0)
-    {
-        int err = errno;
-        throw system_error(err, system_category(), "Failed to retrieve hostname: " + string(strerror(err)));
-    }
-
-    // Prepare the POST data
-    report_payload_str = statsToPayload(hostname, &sys_info);
-    curl_easy_setopt(curl_session, CURLOPT_POSTFIELDS, report_payload_str.c_str());
-    curl_easy_setopt(curl_session, CURLOPT_POSTFIELDSIZE, report_payload_str.size());
+    // prepare the POST data
+    curl_easy_setopt(curl_session, CURLOPT_POSTFIELDS, jsonStrPayload.c_str());
+    curl_easy_setopt(curl_session, CURLOPT_POSTFIELDSIZE, jsonStrPayload.size());
 
     CURLcode res = curl_easy_perform(curl_session);
     if (res != CURLE_OK)
@@ -92,13 +85,10 @@ void Report::send()
     curl_easy_getinfo(curl_session, CURLINFO_RESPONSE_CODE, &response_code);
     if (response_code != 201)
     {
-        throw runtime_error("Could not send data to '" + server_url +
-                            "', HTTP response code=" + to_string(response_code));
+        throw runtime_error("Got unexpected HTTP response code '" +
+                            to_string(response_code) + "' from '" + server_url + "'");
     }
 
-    if (verbose)
-    {
-        OD_LOG_INFO("Sent system info (http_code=%ld): %s",
-                 response_code, report_payload_str.c_str());
-    }
+    OD_LOG_INFO("Sent system info (http_code=%ld).", response_code);
+    OD_LOG_DBG("Sent data: %s", jsonStrPayload.c_str());
 }

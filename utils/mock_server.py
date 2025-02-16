@@ -13,7 +13,7 @@ def report():
             return jsonify({"error": "Invalid JSON"}), 400
         
         # Validation: Ensure required keys exist
-        required_fields = ["hostname", "uptime"]
+        required_fields = ["hostname", "uptime", "memory", "disk"]
         missing_fields = [field for field in required_fields if field not in data]
         
         if missing_fields:
