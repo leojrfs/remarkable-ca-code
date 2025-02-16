@@ -6,14 +6,12 @@
 
 #include <cstring>
 #include <stdexcept>
-#include <system_error>
 #include <cerrno>
 #include <curl/curl.h>
 #include <unistd.h>
 #include <optional>
 
 #include "HTTPClient.hpp"
-#include "log_utils.h"
 
 using namespace std;
 using namespace ob;
@@ -61,39 +59,27 @@ HTTPClient::~HTTPClient()
 /**
  * @brief Sends a POST request with the specified payload to the server.
  *
- * Sets up the POST data and performs the request. Checks for successful
- * completion and validates the HTTP response code.
  *
  * @param payload The JSON string to send.
  * @return std::optional<http_client_error> An optional error code; empty if successful.
  */
-optional<http_client_error> HTTPClient::post(const string &payload)
+optional<HTTPClient::error> HTTPClient::post(const string &payload)
 {
-    // prepare the POST data
     curl_easy_setopt(curl_session, CURLOPT_POSTFIELDS, payload.c_str());
     curl_easy_setopt(curl_session, CURLOPT_POSTFIELDSIZE, payload.size());
-
-    OD_LOG_DBG("Executing POST request to '%s'.", server_url.c_str());
-    OD_LOG_DBG("POST payload='%s'", payload.c_str());
 
     CURLcode res = curl_easy_perform(curl_session);
     if (res != CURLE_OK)
     {
-        OD_LOG_ERR("Failed while performing POST request: %s", curl_easy_strerror(res));
-        return http_client_error::request_failed;
+        return error::request_failed;
     }
 
-    // check if the response code is 201 (Created), else throw error
     long response_code;
     curl_easy_getinfo(curl_session, CURLINFO_RESPONSE_CODE, &response_code);
     if (response_code != 201)
     {
-        OD_LOG_ERR("Got unexpected HTTP response code '%ld' from '%s'.",
-                   response_code, server_url.c_str());
-        return http_client_error::unexpected_http_response_code;
+        return error::unexpected_http_response_code;
     }
-
-    OD_LOG_INFO("POST request sucessful (http_code=%ld).", response_code);
 
     return {};
 }

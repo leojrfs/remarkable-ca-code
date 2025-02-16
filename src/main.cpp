@@ -7,7 +7,6 @@
 #include <string>
 #include <atomic>
 #include <stdexcept>
-#include <system_error>
 #include <getopt.h>
 #include <signal.h>
 #include "log_utils.h"
@@ -137,29 +136,85 @@ int main(int argc, char *argv[])
 
     // notify systemd that the daemon is ready
     INIT_NOTIFY_READY();
-
-    ob::HTTPClient http_client(server_url);
-
-    while (running)
+    try
     {
-        try
+        ob::HTTPClient http_client(server_url);
+        ob::SystemInfo systeminfo;
+
+        while (running)
         {
-            http_client.post(SystemInfo().getJsonStr());
+
+            auto si_error = systeminfo.readSysInfo();
+            if (si_error.has_value())
+            {
+                switch (si_error.value())
+                {
+                case (ob::SystemInfo::sysstats_error::failed_to_get_hostname):
+                    OD_LOG_ERR("Failed to get hostname!");
+                    break;
+                case (ob::SystemInfo::sysstats_error::failed_to_get_sysinfo):
+                    OD_LOG_ERR("Failed to get sysinfo!");
+                    break;
+                case (ob::SystemInfo::sysstats_error::failed_to_get_disk_stats):
+                    OD_LOG_ERR("Failed to get disk stats!");
+                    break;
+                case (ob::SystemInfo::sysstats_error::failed_to_parse_meminfo):
+                    OD_LOG_ERR("Failed to parse meminfo!");
+                    break;
+                default:
+                    OD_LOG_ERR("Other sysstats error!");
+                    break;
+                }
+            }
+
+            auto tojson_result = systeminfo.toJson();
+            if (!tojson_result.has_value())
+            {
+                switch (tojson_result.error())
+                {
+                case ob::SystemInfo::json_error::json_object_creation_error:
+                    OD_LOG_ERR("Failed when creating JSON object!");
+                    break;
+                default:
+                    OD_LOG_ERR("Other json_error error!");
+                    break;
+                }
+            }
+
+            string payload = tojson_result.value();
+            OD_LOG_DBG("Executing POST request to '%s'.", server_url.c_str());
+            OD_LOG_DBG("POST payload='%s'", payload.c_str());
+
+            auto post_error = http_client.post(payload);
+            if (post_error.has_value())
+            {
+                switch (post_error.value())
+                {
+                case ob::HTTPClient::error::request_failed:
+                    OD_LOG_ERR("HTTP request failed!");
+                    break;
+                case ob::HTTPClient::error::unexpected_http_response_code:
+                    OD_LOG_ERR("unexpected HTTP response code!");
+                    break;
+                default:
+                    OD_LOG_ERR("Other HTTPClient error");
+                    break;
+                }
+            }
+            else
+            {
+                OD_LOG_INFO("POST request sucessful.");
+            }
+            sleep(interval_s);
+            // kick watchdog
+            INIT_NOTIFY_WATCHDOG();
         }
-        catch (const system_error &e)
-        {
-            OD_LOG_ERR("Shutting down daemon due to: %s", e.what());
-            // return 1 for generic or unspecified error as specified in LSB docs
-            ret = 1;
-            break;
-        }
-        catch (const exception &e)
-        {
-            OD_LOG_ERR("Error while sending report: %s", e.what());
-        }
-        sleep(interval_s);
-        // kick watchdog
-        INIT_NOTIFY_WATCHDOG();
+    }
+    catch (const runtime_error &e)
+    {
+        OD_LOG_ERR("Shutting down daemon due to: %s", e.what());
+        // return 1 for generic or unspecified error as specified in LSB docs
+        ret = 1;
     }
 
     // notify daemon is stopping

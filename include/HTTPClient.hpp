@@ -15,16 +15,6 @@
 namespace ob
 {
     /**
-     * @enum http_client_error
-     * @brief Enumerates possible errors for the HTTPClient class.
-     */
-    enum class http_client_error
-    {
-        request_failed,                   /**< The HTTP request failed. */
-        unexpected_http_response_code     /**< Received an unexpected HTTP response code. */
-    };
-
-    /**
      * @class HTTPClient
      * @brief Manages the sending of system information to a specified server.
      */
@@ -37,6 +27,15 @@ namespace ob
         struct curl_slist *headers = nullptr; /**< List of HTTP headers for the cURL session. */
 
     public:
+        /**
+         * @enum error
+         * @brief Enumerates possible errors for the HTTPClient class.
+         */
+        enum class error
+        {
+            request_failed,               /**< The HTTP request failed. */
+            unexpected_http_response_code /**< Received an unexpected HTTP response code. */
+        };
         /**
          * @brief Constructs a HTTPClient object with the specified server URL.
          * @param url The server URL to send data to.
@@ -58,7 +57,7 @@ namespace ob
          * @param payload The JSON string to send.
          * @return std::optional<http_client_error> An optional error code; empty if successful.
          */
-        std::optional<http_client_error> post(const std::string &payload);
+        std::optional<error> post(const std::string &payload);
     };
 }
 #endif // OBHTTPCLIENT_HPP
