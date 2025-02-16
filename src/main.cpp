@@ -14,7 +14,7 @@
 #include "init_utils.h"
 
 #include "SystemInfo.hpp"
-#include "Report.hpp"
+#include "HTTPClient.hpp"
 
 using namespace std;
 
@@ -138,13 +138,13 @@ int main(int argc, char *argv[])
     // notify systemd that the daemon is ready
     INIT_NOTIFY_READY();
 
-    Report report(server_url);
+    ob::HTTPClient http_client(server_url);
 
     while (running)
     {
         try
         {
-            report.send(SystemInfo().getJsonStr());
+            http_client.post(SystemInfo().getJsonStr());
         }
         catch (const system_error &e)
         {

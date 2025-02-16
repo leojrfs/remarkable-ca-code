@@ -15,7 +15,7 @@ pkg_check_modules(JSONC REQUIRED json-c)
 add_executable(observabilityd
     src/main.cpp
     src/sys_utils.c
-    src/Report.cpp
+    src/HTTPClient.cpp
     src/SystemInfo.cpp
 )
 
